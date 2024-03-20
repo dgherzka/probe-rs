@@ -18,6 +18,7 @@ use super::{
         stm32_armv6::{Stm32Armv6, Stm32Armv6Family},
         stm32_armv7::Stm32Armv7,
         stm32h7::Stm32h7,
+        stm32n6::Stm32n6,
     },
     Core, MemoryRegion, RawFlashAlgorithm, RegistryError, TargetDescriptionSource,
 };
@@ -177,6 +178,8 @@ impl Target {
             DebugSequence::Arm(Stm32Armv7::create())
         } else if chip.name.starts_with("STM32H7") {
             DebugSequence::Arm(Stm32h7::create())
+        } else if chip.name.starts_with("STM32N6") {
+            DebugSequence::Arm(Stm32n6::create())
         } else if chip.name.starts_with("ATSAMD1")
             || chip.name.starts_with("ATSAMD2")
             || chip.name.starts_with("ATSAMDA")
