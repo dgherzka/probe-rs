@@ -8,6 +8,7 @@ use crate::memory::MemoryInterface;
 use crate::{core::CoreRegisters, session::Session, Core, InstructionSet};
 use std::{
     fmt::Debug,
+    sync::Arc,
     time::{Duration, Instant},
 };
 
@@ -55,6 +56,7 @@ pub(super) struct Flasher<'session> {
     core_index: usize,
     flash_algorithm: FlashAlgorithm,
     progress: FlashProgress,
+    prepare_core: Option<Arc<dyn Fn(&mut Core, &FlashAlgorithm) -> Result<(), crate::Error>>>,
 }
 
 impl<'session> Flasher<'session> {
@@ -63,6 +65,7 @@ impl<'session> Flasher<'session> {
         core_index: usize,
         raw_flash_algorithm: &RawFlashAlgorithm,
         progress: Option<FlashProgress>,
+        prepare_core: Option<Arc<dyn Fn(&mut Core, &FlashAlgorithm) -> Result<(), crate::Error>>>,
     ) -> Result<Self, FlashError> {
         let target = session.target();
 
@@ -131,6 +134,7 @@ impl<'session> Flasher<'session> {
             core_index,
             flash_algorithm,
             progress: progress.unwrap_or(FlashProgress::new(|_| {})),
+            prepare_core,
         };
 
         this.load()?;
@@ -156,17 +160,20 @@ impl<'session> Flasher<'session> {
             .core(self.core_index)
             .map_err(FlashError::Core)?;
 
-        // TODO: Halt & reset target.
-        tracing::debug!("Halting core {}", self.core_index);
-        let cpu_info = core
-            .halt(Duration::from_millis(100))
-            .map_err(FlashError::Core)?;
-        tracing::debug!("PC = {:010x}", cpu_info.pc);
-        tracing::debug!("Reset and halt");
-        core.reset_and_halt(Duration::from_millis(500))
-            .map_err(FlashError::Core)?;
-
-        // TODO: Possible special preparation of the target such as enabling faster clocks for the flash e.g.
+        // Prepare the core to execute a flash algorithm.
+        if let Some(prep) = &self.prepare_core {
+            tracing::debug!("Preparing core {} with user closure", self.core_index);
+            prep(&mut core, &algo).map_err(FlashError::Core)?;
+        } else {
+            tracing::debug!("Halting core {}", self.core_index);
+            let cpu_info = core
+                .halt(Duration::from_millis(100))
+                .map_err(FlashError::Core)?;
+            tracing::debug!("PC = 0x{:#010x}", cpu_info.pc);
+            tracing::debug!("Reset and halt");
+            core.reset_and_halt(Duration::from_millis(500))
+                .map_err(FlashError::Core)?;
+        }
 
         // Load flash algorithm code into target RAM.
         tracing::debug!("Downloading algorithm code to {:#010x}", algo.load_address);
