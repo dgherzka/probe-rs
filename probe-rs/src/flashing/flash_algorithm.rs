@@ -165,16 +165,7 @@ impl FlashAlgorithm {
     // Header for RISC-V Flash Algorithms
     const RISCV_FLASH_BLOB_HEADER: [u32; 2] = [riscv::assembly::EBREAK, riscv::assembly::EBREAK];
 
-    const ARM_FLASH_BLOB_HEADER: [u32; 8] = [
-        0xE00A_BE00,
-        0x062D_780D,
-        0x2408_4068,
-        0xD300_0040,
-        0x1E64_4058,
-        0x1C49_D1FA,
-        0x2A00_1E52,
-        0x0477_0D1F,
-    ];
+    const ARM_FLASH_BLOB_HEADER: [u32; 1] = [0xBE00_BE00];
 
     const XTENSA_FLASH_BLOB_HEADER: [u32; 0] = [];
 
@@ -303,7 +294,8 @@ impl FlashAlgorithm {
 
         let code_start = addr_load + header_size;
         let code_size_bytes = (instructions.len() * size_of::<u32>()) as u64;
-        let code_end = code_start + code_size_bytes;
+        // Round up to align the stack (placed immediately after the code blob).
+        let code_end = (code_start + code_size_bytes).next_multiple_of(8);
 
         let buffer_page_size = raw.flash_properties.page_size as u64;
 
