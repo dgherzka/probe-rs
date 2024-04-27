@@ -27,6 +27,10 @@ pub struct Cmd {
     #[clap(flatten)]
     read_write_options: ReadWriteOptions,
 
+    /// True to print raw binary.
+    #[clap(long = "raw")]
+    raw: bool,
+
     /// Number of words to read from the target
     words: u64,
 }
@@ -37,30 +41,49 @@ impl Cmd {
         let mut core = session.core(self.shared.core)?;
         let words = self.words as usize;
 
+        use std::io::Write;
         match self.read_write_options.width {
             ReadWriteBitWidth::B8 => {
                 let mut values = vec![0; words];
                 core.read_8(self.read_write_options.address, &mut values)?;
-                for val in values {
-                    print!("{:02x} ", val);
+                if self.raw {
+                    for word in values {
+                        std::io::stdout().write_all(&word.to_le_bytes())?;
+                    }
+                } else {
+                    for val in values {
+                        print!("{:02x} ", val);
+                    }
+                    println!();
                 }
-                println!();
             }
             ReadWriteBitWidth::B32 => {
                 let mut values = vec![0; words];
                 core.read_32(self.read_write_options.address, &mut values)?;
-                for val in values {
-                    print!("{:08x} ", val);
+                if self.raw {
+                    for word in values {
+                        std::io::stdout().write_all(&word.to_le_bytes())?;
+                    }
+                } else {
+                    for val in values {
+                        print!("{:08x} ", val);
+                    }
+                    println!();
                 }
-                println!();
             }
             ReadWriteBitWidth::B64 => {
                 let mut values = vec![0; words];
                 core.read_64(self.read_write_options.address, &mut values)?;
-                for val in values {
-                    print!("{:016x} ", val);
+                if self.raw {
+                    for word in values {
+                        std::io::stdout().write_all(&word.to_le_bytes())?;
+                    }
+                } else {
+                    for val in values {
+                        print!("{:016x} ", val);
+                    }
+                    println!();
                 }
-                println!();
             }
         }
 
