@@ -1797,6 +1797,12 @@ impl ArmProbe for StLinkMemoryInterface<'_> {
     fn write_8(&mut self, address: u64, data: &[u8]) -> Result<(), ArmError> {
         let address = valid_32bit_arm_address(address)?;
 
+        // The interface requires the data phase to be non-empty; just return
+        // success for empty data.
+        if data.is_empty() {
+            return Ok(());
+        }
+
         // The underlying STLink command is limited to a single USB frame at a time
         // so we must manually chunk it into multiple command if it exceeds
         // that size.
